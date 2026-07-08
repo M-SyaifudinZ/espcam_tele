@@ -10,12 +10,13 @@ SensorHandler::SensorHandler(uint8_t pin_pir, uint8_t pin_door,
                               uint8_t pin_vehicle, uint8_t pin_bypass)
     : _pin_pir(pin_pir), _pin_door(pin_door),
       _pin_vehicle(pin_vehicle), _pin_bypass(pin_bypass),
-      _pir_flag(false), _vehicle_flag(false), _bypass_flag(false) {
+            _pir_flag(false), _vehicle_flag(false), _bypass_flag(false),
+            _pir_sim_enabled(false), _pir_sim_state(false) {
     _inst = this;
 }
 
 void SensorHandler::begin() {
-    pinMode(_pin_pir,     INPUT);
+    pinMode(_pin_pir,     INPUT_PULLDOWN);
     pinMode(_pin_door,    INPUT_PULLUP);
     pinMode(_pin_vehicle, INPUT_PULLUP);
     pinMode(_pin_bypass,  INPUT_PULLUP);
@@ -28,11 +29,27 @@ void SensorHandler::begin() {
 }
 
 SensorState SensorHandler::read() {
+    bool pir_active = _pir_sim_enabled ? _pir_sim_state : (digitalRead(_pin_pir) == HIGH);
     return {
-        .pir_active     = digitalRead(_pin_pir) == HIGH,
+        .pir_active     = pir_active,
         .door_open      = digitalRead(_pin_door) == HIGH,
         .vehicle_active = digitalRead(_pin_vehicle) == LOW
     };
+}
+
+void SensorHandler::triggerPirSimulation() {
+    _pir_sim_enabled = true;
+    _pir_sim_state = true;
+    _pir_flag = true;
+}
+
+void SensorHandler::clearPirSimulation() {
+    _pir_sim_enabled = true;
+    _pir_sim_state = false;
+}
+
+bool SensorHandler::pirSimulationEnabled() const {
+    return _pir_sim_enabled;
 }
 
 bool SensorHandler::consumePirTrigger() {

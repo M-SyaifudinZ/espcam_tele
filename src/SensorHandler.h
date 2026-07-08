@@ -16,12 +16,17 @@ public:
     bool consumePirTrigger();
     bool consumeVehicleTrigger();
     bool consumeBypassTrigger();
+    void triggerPirSimulation();
+    void clearPirSimulation();
+    bool pirSimulationEnabled() const;
 
 private:
     uint8_t _pin_pir, _pin_door, _pin_vehicle, _pin_bypass;
     volatile bool _pir_flag;
     volatile bool _vehicle_flag;
     volatile bool _bypass_flag;
+    volatile bool _pir_sim_enabled;
+    volatile bool _pir_sim_state;
 
     static SensorHandler* _inst;
     static void IRAM_ATTR _pirISR();

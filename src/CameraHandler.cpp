@@ -39,11 +39,11 @@ bool CameraHandler::begin() {
     cfg.pixel_format = PIXFORMAT_JPEG;
 
     if (psramFound()) {
-        cfg.frame_size   = FRAMESIZE_UXGA;
+        cfg.frame_size   = FRAMESIZE_VGA;
         cfg.jpeg_quality = 10;
         cfg.fb_count     = 2;
     } else {
-        cfg.frame_size   = FRAMESIZE_SVGA;
+        cfg.frame_size   = FRAMESIZE_VGA;
         cfg.jpeg_quality = 12;
         cfg.fb_count     = 1;
     }

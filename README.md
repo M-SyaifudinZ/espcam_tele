@@ -4,33 +4,35 @@ Sistem keamanan secondary unit berbasis ESP32-CAM AI Thinker dengan PIR, limit s
 
 ## Hardware Wiring
 
-| Komponen              | GPIO | Keterangan                             |
-|-----------------------|------|----------------------------------------|
-| PIR BTE16-19 OUT      | 13   | Interrupt RISING                       |
-| Magnetic Switch       | 14   | INPUT_PULLUP, HIGH = terbuka           |
-| Limit Switch Kendaraan| 15   | INPUT_PULLUP, FALLING = kendaraan      |
-| Bypass Button         | 2    | INPUT_PULLUP, FALLING = ditekan        |
-| Relay/Alarm OUT       | 12   | HIGH = aktif (jaga LOW saat boot!)     |
-| LED Status            | 33   | On-board, active LOW                   |
-| Kamera OV3660         | —    | Built-in AI-Thinker                    |
+| Komponen               | GPIO | Keterangan                         |
+| ---------------------- | ---- | ---------------------------------- |
+| PIR BTE16-19 OUT       | 13   | Interrupt RISING                   |
+| Magnetic Switch        | 14   | INPUT_PULLUP, HIGH = terbuka       |
+| Limit Switch Kendaraan | 15   | INPUT_PULLUP, FALLING = kendaraan  |
+| Bypass Button          | 2    | INPUT_PULLUP, FALLING = ditekan    |
+| Relay/Alarm OUT        | 12   | HIGH = aktif (jaga LOW saat boot!) |
+| LED Status             | 33   | On-board, active LOW               |
+| Kamera OV3660          | —    | Built-in AI-Thinker                |
 
 > **Penting:** GPIO 12 harus LOW saat boot. Pastikan relay tidak menarik HIGH sebelum ESP32 selesai booting.
 > GPIO 2 (bypass button) memiliki on-board LED — normal digunakan sebagai input.
 
-## Yang Diubah di `src/config.h`
+## Konfigurasi
 
-| Define | Isi |
-|--------|-----|
-| `WIFI_SSID` | Nama WiFi |
-| `WIFI_PASSWORD` | Password WiFi |
-| `TG_BOT_TOKEN` | Token dari @BotFather |
-| `PERSONAL_CHAT_ID` | ID chat pribadi |
-| `GROUP_CHAT_IDS` | `"id1,id2"` atau `""` |
-| `CLOUD_STATUS_URL` | Endpoint HTTP POST JSON |
-| `CLOUD_IMAGE_URL` | Endpoint HTTP POST image |
-| `CLOUD_API_KEY` | API key server |
-| `PIN_*` | Sesuaikan wiring fisik |
-| `DOOR_ALARM_TIMEOUT_MS` | Default 60000 (60 detik) |
+| Define                  | Isi                                                    |
+| ----------------------- | ------------------------------------------------------ |
+| `src/config.h`          | Placeholder aman untuk repo                            |
+| `src/config.local.h`    | Override lokal berisi kredensial asli, tidak di-commit |
+| `WIFI_SSID`             | Nama WiFi                                              |
+| `WIFI_PASSWORD`         | Password WiFi                                          |
+| `TG_BOT_TOKEN`          | Token dari @BotFather                                  |
+| `PERSONAL_CHAT_ID`      | ID chat pribadi                                        |
+| `GROUP_CHAT_IDS`        | `"id1,id2"` atau `""`                                  |
+| `CLOUD_STATUS_URL`      | Endpoint HTTP POST JSON                                |
+| `CLOUD_IMAGE_URL`       | Endpoint HTTP POST image                               |
+| `CLOUD_API_KEY`         | API key server                                         |
+| `PIN_*`                 | Sesuaikan wiring fisik                                 |
+| `DOOR_ALARM_TIMEOUT_MS` | Default 60000 (60 detik)                               |
 
 ## Instalasi PlatformIO
 
@@ -40,8 +42,9 @@ pip install platformio
 git clone https://github.com/M-SyaifudinZ/espcam_tele
 cd espcam_tele
 
-# Edit konfigurasi
-nano src/config.h
+# Buat file lokal berisi kredensial asli
+copy src\config.h src\config.local.h
+# lalu edit src\config.local.h
 
 # Mode flash: hubungkan GPIO0 ke GND, tekan reset
 pio run --target upload
@@ -62,14 +65,22 @@ pio device monitor
 
 Gambar dikirim sebagai raw JPEG ke `CLOUD_IMAGE_URL` dengan header `Content-Type: image/jpeg`.
 
+## Route Backend
+
+Backend ini memakai route berikut:
+
+- `POST /status` untuk status PIR / pintu
+- `POST /image` untuk upload JPEG mentah
+- `GET /` untuk health check
+
 ## Perintah Telegram Bot
 
-| Perintah | Fungsi |
-|----------|--------|
-| `/matialarm` | Matikan alarm lokal ESP32 |
-| `/status` | WiFi RSSI, PIR, pintu, kendaraan, alarm |
-| `/foto` | Capture + kirim foto ke chat |
-| `/restart` | `ESP.restart()` |
+| Perintah     | Fungsi                                  |
+| ------------ | --------------------------------------- |
+| `/matialarm` | Matikan alarm lokal ESP32               |
+| `/status`    | WiFi RSSI, PIR, pintu, kendaraan, alarm |
+| `/foto`      | Capture + kirim foto ke chat            |
+| `/restart`   | `ESP.restart()`                         |
 
 ## Logika Sistem
 

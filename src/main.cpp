@@ -10,7 +10,7 @@
 // ─── Komponen ─────────────────────────────────────────────────────────────────
 static CameraHandler camera;
 static SensorHandler sensor(PIN_PIR, PIN_DOOR, PIN_VEHICLE_SWITCH, PIN_BYPASS_BUTTON);
-static AlarmHandler  alarm(PIN_ALARM, PIN_STATUS_LED);
+static AlarmHandler  alarmHandler(PIN_ALARM, PIN_STATUS_LED);
 static CloudClient   cloud(CLOUD_STATUS_URL, CLOUD_IMAGE_URL, CLOUD_API_KEY);
 static TelegramHandler* tg = nullptr;
 
@@ -21,11 +21,13 @@ static volatile bool     g_doorTimerRunning = false;
 static volatile bool     g_alarmActive      = false;
 static unsigned long     g_doorOpenTime      = 0;   // hanya ditulis dari sensorTask
 
-static volatile bool g_notifHuman     = false;   // sensor set, TG clear
-static volatile bool g_notifVehicle   = false;
 static volatile bool g_notifDoorAlarm = false;
 
-static unsigned long g_lastHumanMs = 0;           // hanya ditulis dari sensorTask
+static bool g_lastPirState = false;
+static bool g_lastPirStateInitialized = false;
+static String g_serialLine;
+
+static void handleSerialDebugCommands();
 
 // ─── WiFi ─────────────────────────────────────────────────────────────────────
 static void wifiConnect() {
@@ -51,35 +53,16 @@ static void tgTask(void*) {
             unsigned long now = millis();
 
             // Poll perintah bot
-            if (now - lastPoll >= TG_POLL_MS) {
+            if (now - lastPoll >= 5000UL) {
                 lastPoll = now;
                 tg->handle();
-            }
-
-            // Notif manusia — kirim teks + foto ke personal
-            if (g_notifHuman) {
-                g_notifHuman = false;
-                tg->sendPersonal("⚠️ TERDETEKSI MANUSIA");
-                if (xSemaphoreTake(g_camMutex, pdMS_TO_TICKS(5000)) == pdTRUE) {
-                    camera_fb_t* fb = camera.capture();
-                    if (fb) {
-                        tg->sendPhotoPersonal(fb, "📸 Deteksi Manusia");
-                        camera.releaseFrame(fb);
-                    }
-                    xSemaphoreGive(g_camMutex);
-                }
-            }
-
-            // Notif kendaraan — teks saja ke personal
-            if (g_notifVehicle) {
-                g_notifVehicle = false;
-                tg->sendPersonal("🚗 TERDETEKSI KENDARAAN");
             }
 
             // Notif alarm pintu — broadcast ke semua chat
             if (g_notifDoorAlarm) {
                 g_notifDoorAlarm = false;
                 tg->broadcastAll("🚨 ALARM! Pintu terbuka lebih dari 1 menit tanpa respons!");
+                vTaskDelay(pdMS_TO_TICKS(1000));
             }
         }
         vTaskDelay(pdMS_TO_TICKS(100));
@@ -90,6 +73,8 @@ static void tgTask(void*) {
 static void sensorTask(void*) {
     unsigned long lastCheck = 0;
     for (;;) {
+        handleSerialDebugCommands();
+
         unsigned long now = millis();
         if (now - lastCheck < SENSOR_INTERVAL_MS) {
             vTaskDelay(pdMS_TO_TICKS(50));
@@ -98,6 +83,14 @@ static void sensorTask(void*) {
         lastCheck = now;
 
         SensorState state = sensor.read();
+
+        if (!g_lastPirStateInitialized || state.pir_active != g_lastPirState) {
+            g_lastPirState = state.pir_active;
+            g_lastPirStateInitialized = true;
+            Serial.printf("[PIR] State: %s (%s)\n",
+                          state.pir_active ? "HIGH/TRIGGERED" : "LOW/IDLE",
+                          sensor.pirSimulationEnabled() ? "SIM" : "HW");
+        }
 
         // ── Door alarm timer ──────────────────────────────────────────────────
         if (state.door_open && !g_doorTimerRunning && !g_alarmActive) {
@@ -113,7 +106,7 @@ static void sensorTask(void*) {
             if (millis() - g_doorOpenTime >= DOOR_ALARM_TIMEOUT_MS) {
                 g_doorTimerRunning = false;
                 g_alarmActive = true;
-                alarm.activate();
+                alarmHandler.activate();
                 g_notifDoorAlarm = true;
                 Serial.println("[DOOR] ALARM AKTIF — timeout 1 menit");
             }
@@ -123,29 +116,28 @@ static void sensorTask(void*) {
         if (sensor.consumeBypassTrigger()) {
             g_doorTimerRunning = false;
             g_alarmActive = false;
-            alarm.deactivate();
+            alarmHandler.deactivate();
             Serial.println("[BYPASS] Alarm dimatikan via tombol fisik");
         }
 
         // ── PIR — deteksi manusia ─────────────────────────────────────────────
         if (sensor.consumePirTrigger()) {
+            Serial.println("[SENSOR] PIR trigger");
             cloud.postStatus(true, state.door_open, "motion_detected");
+
             if (xSemaphoreTake(g_camMutex, pdMS_TO_TICKS(2000)) == pdTRUE) {
                 camera_fb_t* fb = camera.capture();
-                if (fb) { cloud.postImage(fb); camera.releaseFrame(fb); }
+                if (fb) {
+                    cloud.postImage(fb);
+                    camera.releaseFrame(fb);
+                }
                 xSemaphoreGive(g_camMutex);
-            }
-            // Notif Telegram dengan cooldown
-            if (millis() - g_lastHumanMs >= HUMAN_COOLDOWN_MS) {
-                g_lastHumanMs = millis();
-                g_notifHuman = true;
             }
         }
 
         // ── Vehicle limit switch ──────────────────────────────────────────────
         if (sensor.consumeVehicleTrigger()) {
             cloud.postStatus(false, state.door_open, "vehicle_detected");
-            g_notifVehicle = true;
             Serial.println("[SENSOR] Kendaraan terdeteksi via limit switch");
         }
 
@@ -153,29 +145,72 @@ static void sensorTask(void*) {
     }
 }
 
+static void handleSerialDebugCommands() {
+    while (Serial.available() > 0) {
+        char c = static_cast<char>(Serial.read());
+        if (c == '\n' || c == '\r') {
+            if (g_serialLine.length() == 0) {
+                continue;
+            }
+
+            g_serialLine.trim();
+            if (g_serialLine.equalsIgnoreCase("pir on") || g_serialLine.equalsIgnoreCase("pir trigger") || g_serialLine.equalsIgnoreCase("pir pulse")) {
+                sensor.triggerPirSimulation();
+                Serial.println("[SIM] PIR = HIGH/TRIGGERED");
+            } else if (g_serialLine.equalsIgnoreCase("pir off") || g_serialLine.equalsIgnoreCase("pir low")) {
+                sensor.clearPirSimulation();
+                Serial.println("[SIM] PIR = LOW/IDLE");
+            } else if (g_serialLine.equalsIgnoreCase("pir status")) {
+                SensorState state = sensor.read();
+                Serial.printf("[SIM] PIR status: %s (%s)\n",
+                              state.pir_active ? "HIGH/TRIGGERED" : "LOW/IDLE",
+                              sensor.pirSimulationEnabled() ? "SIM" : "HW");
+            } else {
+                Serial.printf("[SIM] Unknown command: %s\n", g_serialLine.c_str());
+                Serial.println("[SIM] Commands: pir on | pir off | pir status");
+            }
+
+            g_serialLine = "";
+        } else {
+            if (g_serialLine.length() < 64) {
+                g_serialLine += c;
+            } else {
+                g_serialLine = "";
+            }
+        }
+    }
+}
+
 // ─── Setup & Loop ─────────────────────────────────────────────────────────────
 void setup() {
     Serial.begin(115200);
     Serial.println("\n[BOOT] ESP32-CAM Security Unit");
+    Serial.printf("[BOOT] Free heap: %u\n", ESP.getFreeHeap());
 
     g_camMutex = xSemaphoreCreateMutex();
 
+    Serial.println("[BOOT] Camera init...");
     camera.begin();
+    Serial.println("[BOOT] Sensor init...");
     sensor.begin();
-    alarm.begin();
+    Serial.println("[BOOT] Alarm init...");
+    alarmHandler.begin();
 
+    Serial.println("[BOOT] WiFi connect...");
     wifiConnect();
 
-    tg = new TelegramHandler(TG_BOT_TOKEN, camera, sensor, alarm);
+    Serial.println("[BOOT] Telegram init...");
+    tg = new TelegramHandler(TG_BOT_TOKEN, camera, sensor, alarmHandler);
     tg->begin(g_camMutex);
 
     tg->onCancelAlarm = []() {
         g_doorTimerRunning = false;
         g_alarmActive = false;
-        alarm.deactivate();
+        alarmHandler.deactivate();
         Serial.println("[TG] /matialarm — alarm dibatalkan");
     };
 
+    Serial.println("[BOOT] Creating tasks...");
     xTaskCreatePinnedToCore(tgTask,     "TGTask",     10240, nullptr, 1, nullptr, 0);
     xTaskCreatePinnedToCore(sensorTask, "SensorTask",  4096, nullptr, 1, nullptr, 1);
 
