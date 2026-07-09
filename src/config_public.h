@@ -1,20 +1,20 @@
 #pragma once
 
 // ─── WiFi ────────────────────────────────────────────────────────────────────
-#define WIFI_SSID               "Subhanallah 4G"
-#define WIFI_PASSWORD           "muhammadnabiyullah"
+#define WIFI_SSID               "YOUR_WIFI_SSID"
+#define WIFI_PASSWORD           "YOUR_WIFI_PASSWORD"
 #define WIFI_TIMEOUT_MS         15000UL
 
 // ─── Telegram ────────────────────────────────────────────────────────────────
-#define TG_BOT_TOKEN            "8616808637:AAGbTeHbXS_8DbeIUy6XVd8o9C4Rjp2MkcE"
-#define PERSONAL_CHAT_ID        "1222027671"
-#define GROUP_CHAT_IDS          "-1005374438446"   // "id1,id2" atau kosong
+#define TG_BOT_TOKEN            "YOUR_TELEGRAM_BOT_TOKEN"
+#define PERSONAL_CHAT_ID        "YOUR_PERSONAL_CHAT_ID"
+#define GROUP_CHAT_IDS          ""   // "id1,id2" atau kosong
 #define TG_POLL_MS              1000UL
 
 // ─── Cloud ───────────────────────────────────────────────────────────────────
-#define CLOUD_STATUS_URL        "http://192.168.100.90:5000/status"
-#define CLOUD_IMAGE_URL         "http://192.168.100.90:5000/image"
-#define CLOUD_API_KEY           "Yuhuhuhu"
+#define CLOUD_STATUS_URL        "cloud_url_status/status"
+#define CLOUD_IMAGE_URL         "cloud_image_url/image"
+#define CLOUD_API_KEY           "YOUR_CLOUD_API_KEY"
 
 // ─── GPIO ────────────────────────────────────────────────────────────────────
 #define PIN_PIR                 13   // PIR BTE16-19
