@@ -1,6 +1,11 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include "config_public.h"
+#ifdef __has_include
+#if __has_include("config.h")
 #include "config.h"
+#endif
+#endif
 #include "CameraHandler.h"
 #include "SensorHandler.h"
 #include "AlarmHandler.h"

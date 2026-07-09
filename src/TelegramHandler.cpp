@@ -1,5 +1,10 @@
 #include "TelegramHandler.h"
+#include "config_public.h"
+#ifdef __has_include
+#if __has_include("config.h")
 #include "config.h"
+#endif
+#endif
 #include <WiFi.h>
 
 namespace {

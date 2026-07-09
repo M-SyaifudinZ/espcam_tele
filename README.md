@@ -21,8 +21,8 @@ Sistem keamanan secondary unit berbasis ESP32-CAM AI Thinker dengan PIR, limit s
 
 | Define                  | Isi                                                    |
 | ----------------------- | ------------------------------------------------------ |
-| `src/config.h`          | Placeholder aman untuk repo                            |
-| `src/config.local.h`    | Override lokal berisi kredensial asli, tidak di-commit |
+| `src/config_public.h`   | Placeholder aman untuk repo                            |
+| `src/config.h`          | Override lokal berisi kredensial asli, tidak di-commit |
 | `WIFI_SSID`             | Nama WiFi                                              |
 | `WIFI_PASSWORD`         | Password WiFi                                          |
 | `TG_BOT_TOKEN`          | Token dari @BotFather                                  |
@@ -43,8 +43,8 @@ git clone https://github.com/M-SyaifudinZ/espcam_tele
 cd espcam_tele
 
 # Buat file lokal berisi kredensial asli
-copy src\config.h src\config.local.h
-# lalu edit src\config.local.h
+copy src\config_public.h src\config.h
+# lalu edit src\config.h
 
 # Mode flash: hubungkan GPIO0 ke GND, tekan reset
 pio run --target upload
