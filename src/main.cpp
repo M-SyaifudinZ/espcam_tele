@@ -11,6 +11,8 @@
 #include "AlarmHandler.h"
 #include "CloudClient.h"
 #include "TelegramHandler.h"
+#include "EmergencyPollHandler.h"
+
 
 // ─── Komponen ─────────────────────────────────────────────────────────────────
 static CameraHandler camera;
@@ -18,7 +20,7 @@ static SensorHandler sensor(PIN_PIR, PIN_DOOR, PIN_VEHICLE_SWITCH, PIN_BYPASS_BU
 static AlarmHandler  alarmHandler(PIN_ALARM, PIN_STATUS_LED);
 static CloudClient   cloud(CLOUD_STATUS_URL, CLOUD_IMAGE_URL, CLOUD_API_KEY);
 static TelegramHandler* tg = nullptr;
-
+static EmergencyPollHandler emergencyPoll(EMERGENCY_URL, MY_DEVICE_ID, alarmHandler);
 // ─── Shared state (cross-task, volatile) ─────────────────────────────────────
 static SemaphoreHandle_t g_camMutex = nullptr;
 
@@ -43,7 +45,12 @@ static void wifiConnect() {
         delay(500); Serial.print(".");
     }
     if (WiFi.status() == WL_CONNECTED) {
-        Serial.printf("\n[WiFi] IP: %s\n", WiFi.localIP().toString().c_str());
+        WiFi.config(WiFi.localIP(), WiFi.gatewayIP(), WiFi.subnetMask(),
+                    IPAddress(8, 8, 8, 8), IPAddress(1, 1, 1, 1));
+        Serial.printf("\n[WiFi] IP: %s  GW: %s  DNS: %s\n",
+                      WiFi.localIP().toString().c_str(),
+                      WiFi.gatewayIP().toString().c_str(),
+                      WiFi.dnsIP().toString().c_str());
     } else {
         Serial.println("\n[WiFi] Timeout — restart");
         ESP.restart();
@@ -74,6 +81,14 @@ static void tgTask(void*) {
     }
 }
 
+static void emergencyTask(void*) {
+    for (;;) {
+        if (WiFi.status() == WL_CONNECTED) {
+            emergencyPoll.loop();
+        }
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+}
 // ─── Task: Sensor + Cloud + Door Alarm (Core 1) ───────────────────────────────
 static void sensorTask(void*) {
     unsigned long lastCheck = 0;
@@ -217,6 +232,7 @@ void setup() {
 
     Serial.println("[BOOT] Creating tasks...");
     xTaskCreatePinnedToCore(tgTask,     "TGTask",     10240, nullptr, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(emergencyTask, "EmgTask",     6144, nullptr, 1, nullptr, 0);
     xTaskCreatePinnedToCore(sensorTask, "SensorTask",  4096, nullptr, 1, nullptr, 1);
 
     Serial.println("[BOOT] Semua task berjalan");
