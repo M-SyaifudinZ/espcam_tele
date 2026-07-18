@@ -42,7 +42,7 @@ static void wifiConnect() {
     Serial.print("[WiFi] Connecting");
     unsigned long t = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - t < WIFI_TIMEOUT_MS) {
-        delay(500); Serial.print(".");
+        delay(1000); Serial.print(".");
     }
     if (WiFi.status() == WL_CONNECTED) {
         WiFi.config(WiFi.localIP(), WiFi.gatewayIP(), WiFi.subnetMask(),
@@ -65,7 +65,7 @@ static void tgTask(void*) {
             unsigned long now = millis();
 
             // Poll perintah bot
-            if (now - lastPoll >= 5000UL) {
+            if (now - lastPoll >= 15000UL) {
                 lastPoll = now;
                 tg->handle();
             }
@@ -156,12 +156,12 @@ static void sensorTask(void*) {
         }
 
         // ── Vehicle limit switch ──────────────────────────────────────────────
-        if (sensor.consumeVehicleTrigger()) {
-            cloud.postStatus(false, state.door_open, "vehicle_detected");
-            Serial.println("[SENSOR] Kendaraan terdeteksi via limit switch");
-        }
+        // if (sensor.consumeVehicleTrigger()) {
+        //     cloud.postStatus(false, state.door_open, "vehicle_detected");
+        //     Serial.println("[SENSOR] Kendaraan terdeteksi via limit switch");
+        // }
 
-        vTaskDelay(pdMS_TO_TICKS(50));
+        // vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
 
@@ -239,6 +239,7 @@ void setup() {
 }
 
 void loop() {
+      // pastikan sirine mati saat loop
     if (WiFi.status() != WL_CONNECTED) {
         Serial.println("[WiFi] Reconnecting...");
         wifiConnect();

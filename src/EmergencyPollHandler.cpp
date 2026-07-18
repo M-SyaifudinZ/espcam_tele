@@ -26,17 +26,39 @@ void EmergencyPollHandler::loop() {
 void EmergencyPollHandler::checkEmergency() {
     HTTPClient http;
     http.begin(_url);
-    http.addHeader("X-API-Key", CLOUD_API_KEY );   
+    http.addHeader("X-API-Key", CLOUD_API_KEY);   
     http.setTimeout(3000);
 
     int code = http.GET();
 
     if (code == 200) {
-        // ... (sama seperti sebelumnya)
+        String payload = http.getString();
+        
+        StaticJsonDocument<256> doc; 
+        DeserializationError error = deserializeJson(doc, payload);
+
+        if (!error) {
+            const char* triggeredDeviceId = doc["device"]; 
+
+            if (triggeredDeviceId != nullptr) {
+                if (strcmp(triggeredDeviceId, _myDeviceId) != 0) {
+                    Serial.println("[EMG] Bahaya dari device LAIN! Menyalakan buzzer...");
+                    _alarm.activate(); 
+                } else {
+                    Serial.println("[EMG] Bahaya dari device INI. Abaikan buzzer.");
+                }
+            } 
+            // Bagian else dihapus biar nggak nyepam saat nggak ada data emergency
+            
+        } else {
+            // Hanya nge-print kalau format JSON-nya benar-benar rusak
+            Serial.printf("[EMG] Gagal parsing JSON: %s\n", error.c_str());
+        }
     } else if (code < 0) {
         Serial.printf("[EMG] Connection error: %s\n", http.errorToString(code).c_str());
     } else {
-        Serial.printf("[EMG] HTTP error: %d\n", code);   // ← tambahan, biar 401/404/dll kelihatan di log, gak silent
+        // Bisa di-comment juga kalau API servermu sering balikin 404/401 dan kamu gak mau lihat log-nya
+        Serial.printf("[EMG] HTTP error: %d\n", code);   
     }
 
     http.end();

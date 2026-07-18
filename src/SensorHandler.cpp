@@ -3,7 +3,7 @@
 SensorHandler* SensorHandler::_inst = nullptr;
 
 void IRAM_ATTR SensorHandler::_pirISR()     { if (_inst) _inst->_pir_flag = true; }
-void IRAM_ATTR SensorHandler::_vehicleISR() { if (_inst) _inst->_vehicle_flag = true; }
+// void IRAM_ATTR SensorHandler::_vehicleISR() { if (_inst) _inst->_vehicle_flag = true; }
 void IRAM_ATTR SensorHandler::_bypassISR()  { if (_inst) _inst->_bypass_flag = true; }
 
 SensorHandler::SensorHandler(uint8_t pin_pir, uint8_t pin_door,
@@ -16,24 +16,24 @@ SensorHandler::SensorHandler(uint8_t pin_pir, uint8_t pin_door,
 }
 
 void SensorHandler::begin() {
-    pinMode(_pin_pir,     INPUT_PULLDOWN);
-    pinMode(_pin_door,    INPUT_PULLUP);
-    pinMode(_pin_vehicle, INPUT_PULLUP);
-    pinMode(_pin_bypass,  INPUT_PULLUP);
+    pinMode(_pin_pir,     INPUT);
+    pinMode(_pin_door,    INPUT);
+    // pinMode(_pin_vehicle, INPUT);
+    pinMode(_pin_bypass,  INPUT_PULLDOWN);
 
-    attachInterrupt(digitalPinToInterrupt(_pin_pir),     _pirISR,     RISING);
-    attachInterrupt(digitalPinToInterrupt(_pin_vehicle), _vehicleISR, FALLING);
-    attachInterrupt(digitalPinToInterrupt(_pin_bypass),  _bypassISR,  FALLING);
-
+    attachInterrupt(digitalPinToInterrupt(_pin_pir),     _pirISR,     FALLING);
+   //attachInterrupt(digitalPinToInterrupt(_pin_vehicle), _vehicleISR, FALLING);
+    attachInterrupt(digitalPinToInterrupt(_pin_bypass),  _bypassISR,  RISING);
+ 
     Serial.println("[SENSOR] Ready: PIR, door, vehicle switch, bypass button");
 }
 
 SensorState SensorHandler::read() {
-    bool pir_active = _pir_sim_enabled ? _pir_sim_state : (digitalRead(_pin_pir) == HIGH);
+    bool pir_active = _pir_sim_enabled ? _pir_sim_state : (digitalRead(_pin_pir) == LOW);
     return {
         .pir_active     = pir_active,
         .door_open      = digitalRead(_pin_door) == HIGH,
-        .vehicle_active = digitalRead(_pin_vehicle) == LOW
+        // .vehicle_active = digitalRead(_pin_vehicle) == LOW
     };
 }
 
@@ -44,7 +44,7 @@ void SensorHandler::triggerPirSimulation() {
 }
 
 void SensorHandler::clearPirSimulation() {
-    _pir_sim_enabled = true;
+    _pir_sim_enabled = false;
     _pir_sim_state = false;
 }
 
@@ -57,10 +57,10 @@ bool SensorHandler::consumePirTrigger() {
     return false;
 }
 
-bool SensorHandler::consumeVehicleTrigger() {
-    if (_vehicle_flag) { _vehicle_flag = false; return true; }
-    return false;
-}
+// bool SensorHandler::consumeVehicleTrigger() {
+//     if (_vehicle_flag) { _vehicle_flag = false; return true; }
+//     return false;
+// }
 
 bool SensorHandler::consumeBypassTrigger() {
     if (_bypass_flag) { _bypass_flag = false; return true; }

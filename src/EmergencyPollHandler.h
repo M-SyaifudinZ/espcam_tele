@@ -12,7 +12,7 @@ public:
     void loop();   // panggil berkala dari task
 
 private:
-    static const unsigned long POLL_INTERVAL_MS = 2000;
+    static const unsigned long POLL_INTERVAL_MS = 6000;
 
     String        _url;
     const char*   _myDeviceId;

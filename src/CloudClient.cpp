@@ -12,6 +12,10 @@ CloudClient::CloudClient(const char* status_url, const char* image_url, const ch
     : _status_url(status_url), _image_url(image_url), _api_key(api_key) {}
 
 void CloudClient::_addAuth(HTTPClient& http) {
+    //
+    http.setUserAgent("Mozilla/5.0 (ESP32; Rport Client)");
+    http.addHeader("Connection", "close");
+    //
     http.addHeader("X-API-Key", _api_key);
     http.setTimeout(HTTP_TIMEOUT_MS);
 }

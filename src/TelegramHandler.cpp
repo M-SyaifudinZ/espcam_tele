@@ -117,7 +117,8 @@ void TelegramHandler::_cmdFoto(const String& chat_id) {
 
 void TelegramHandler::_cmdRestart(const String& chat_id) {
     _bot.sendMessage(chat_id, "🔄 Restarting...", "");
-    delay(300);
+    _bot.getUpdates(_bot.last_message_received + 1);
+    delay(500);
     ESP.restart();
 }
 
